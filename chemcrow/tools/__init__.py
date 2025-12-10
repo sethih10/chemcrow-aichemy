@@ -8,3 +8,4 @@ from .chemspace import *  # noqa
 from .converters import *  # noqa
 from .reactions import *  # noqa
 # from .porosity import *  # noqa
+from .read import Read_CSV
