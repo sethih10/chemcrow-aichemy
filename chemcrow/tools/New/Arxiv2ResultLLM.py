@@ -1,8 +1,8 @@
 import os
 import re
 import requests
+import xml.etree.ElementTree as ET
 
-import arxiv
 import langchain
 import paperqa
 from langchain.base_language import BaseLanguageModel
@@ -11,59 +11,116 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from pypdf.errors import PdfReadError
 
 
-# ------------ ArXiv helper functions ------------ #
+ARXIV_API_URL = "http://export.arxiv.org/api/query"
+
+
+# ------------ ArXiv helper functions (raw API) ------------ #
+
+def _arxiv_api_query(
+    search: str,
+    max_results: int = 20,
+) -> list[dict]:
+    """
+    Call the arXiv export API directly and parse results.
+
+    Returns a list of dicts with keys:
+      'id', 'title', 'authors', 'summary', 'published', 'pdf_url'
+    """
+    params = {
+        # search all fields with the LLM query
+        "search_query": f"all:{search}",
+        "start": 0,
+        "max_results": max_results,
+    }
+
+    resp = requests.get(ARXIV_API_URL, params=params, timeout=30)
+    resp.raise_for_status()
+
+    root = ET.fromstring(resp.text)
+    ns = {"atom": "http://www.w3.org/2005/Atom"}
+
+    entries: list[dict] = []
+    for entry in root.findall("atom:entry", ns):
+        title_el = entry.find("atom:title", ns)
+        id_el = entry.find("atom:id", ns)
+        summary_el = entry.find("atom:summary", ns)
+        published_el = entry.find("atom:published", ns)
+
+        title = (title_el.text or "").strip() if title_el is not None else ""
+        entry_id = (id_el.text or "").strip() if id_el is not None else ""
+        summary = (summary_el.text or "").strip() if summary_el is not None else ""
+        published = (published_el.text or "").strip() if published_el is not None else ""
+
+        # authors
+        authors_list = []
+        for a in entry.findall("atom:author", ns):
+            name_el = a.find("atom:name", ns)
+            if name_el is not None and name_el.text:
+                authors_list.append(name_el.text.strip())
+        authors = ", ".join(authors_list)
+
+        # build a pdf URL from the id: http://arxiv.org/abs/... -> http://arxiv.org/pdf/....pdf
+        pdf_url = ""
+        if "/abs/" in entry_id:
+            pdf_url = entry_id.replace("/abs/", "/pdf/") + ".pdf"
+
+        entries.append(
+            {
+                "id": entry_id,
+                "title": title,
+                "authors": authors,
+                "summary": summary,
+                "published": published,
+                "pdf_url": pdf_url,
+            }
+        )
+
+    return entries
+
 
 def arxiv_scraper(
     search: str,
     pdir: str = "arxiv_query",
     max_results: int = 20,
-    timeout: int = 30,
 ) -> dict:
     """
-    Search arxiv.org and download PDFs for the top `max_results` hits
-    into directory `pdir`.
+    Use the raw arXiv API to find up to max_results papers matching `search`,
+    download their PDFs, and return a mapping:
 
-    Returns:
-        dict[path] = {"citation": <citation_string>}
+        path -> {"citation": <citation_string>}
     """
-    # Make a base directory if it doesn't exist
     os.makedirs(pdir, exist_ok=True)
 
-    search_obj = arxiv.Search(
-        query=search,
-        max_results=max_results,
-        sort_by=arxiv.SortCriterion.Relevance,
-    )
+    results = _arxiv_api_query(search, max_results=max_results)
+    papers: dict = {}
 
-    papers = {}
-    for result in search_obj.results():
+    for r in results:
+        if not r.get("pdf_url"):
+            continue
+
         try:
-            pdf_url = result.pdf_url
-            arxiv_id = result.entry_id.split("/")[-1]
-            # Each query gets its own sub-folder, so we don't collide too much
+            # build a reasonably unique filename from the id
+            arxiv_id = r["id"].split("/")[-1] if r["id"] else "arxiv"
             filename = f"{arxiv_id}.pdf"
             path = os.path.join(pdir, filename)
 
-            # Download PDF
-            r = requests.get(pdf_url, timeout=timeout)
-            r.raise_for_status()
+            pdf_resp = requests.get(r["pdf_url"], timeout=30)
+            pdf_resp.raise_for_status()
             with open(path, "wb") as f:
-                f.write(r.content)
+                f.write(pdf_resp.content)
 
-            authors = ", ".join([a.name for a in result.authors])
-            published = result.published.isoformat() if hasattr(result, "published") else ""
             citation = (
-                f"Title: {result.title}\n"
-                f"Authors: {authors}\n"
-                f"Published: {published}\n"
+                f"Title: {r['title']}\n"
+                f"Authors: {r['authors']}\n"
+                f"Published: {r['published']}\n"
                 f"ArXiv ID: {arxiv_id}\n"
-                f"URL: {result.entry_id}\n\n"
-                f"Abstract: {result.summary}"
+                f"URL: {r['id']}\n\n"
+                f"Abstract: {r['summary']}"
             )
 
             papers[path] = {"citation": citation}
         except Exception:
-            # Silently skip any failed downloads / parse issues
+            # skip any entry that fails download / parse
             continue
 
     return papers
@@ -86,14 +143,13 @@ def arxiv_paper_search(llm, query, max_results=20):
 
     query_chain = langchain.chains.llm.LLMChain(llm=llm, prompt=prompt)
 
-    # Base dir to keep all arxiv queries
     base_dir = "arxiv_query"
     os.makedirs(base_dir, exist_ok=True)
 
     search = query_chain.run(query)
     print("\nArXiv search:", search)
 
-    # Make a subdir per search term (remove spaces)
+    # subdirectory per search term (strip whitespace)
     subdir = re.sub(r"\s+", "", search)
     search_dir = os.path.join(base_dir, subdir)
     os.makedirs(search_dir, exist_ok=True)
@@ -107,7 +163,7 @@ def arxiv2result_llm(
     query,
     k: int = 5,
     max_sources: int = 2,
-    openai_api_key: str = None,
+    openai_api_key: str | None = None,
     max_results: int = 20,
 ):
     """
@@ -162,13 +218,13 @@ class Arxiv2ResultLLM(BaseTool):
     )
 
     llm: BaseLanguageModel = None
-    openai_api_key: str = None
+    openai_api_key: str | None = None
     max_results: int = 20
 
     def __init__(
         self,
         llm: BaseLanguageModel,
-        openai_api_key: str = None,
+        openai_api_key: str | None = None,
         max_results: int = 20,
     ):
         super().__init__()
