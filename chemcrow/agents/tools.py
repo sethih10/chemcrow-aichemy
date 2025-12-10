@@ -27,6 +27,7 @@ def make_tools(llm: BaseLanguageModel, api_keys: dict = {}, local_rxn: bool=Fals
     )
 
     all_tools += [
+        QED_Score(),
         Query2SMILES(chemspace_api_key),
         Query2CAS(),
         SMILES2Name(),
