@@ -206,3 +206,44 @@ def smiles2name(smi, single_name=True):
     return name
 
 
+def validate_cif_file(cif_path: str) -> tuple[bool, str]:
+    """
+    Validate if a CIF (Crystallographic Information File) is properly formatted.
+    
+    Args:
+        cif_path: Path to the CIF file
+        
+    Returns:
+        Tuple of (is_valid, message)
+    """
+    import os
+    
+    if not os.path.exists(cif_path):
+        return False, f"File not found: {cif_path}"
+    
+    if not cif_path.lower().endswith(('.cif', '.CIF')):
+        return False, "File must have .cif extension"
+    
+    try:
+        with open(cif_path, 'r') as f:
+            content = f.read()
+            
+        # Check for required CIF data block
+        if not content.strip().startswith('data_'):
+            return False, "CIF file must start with 'data_' block"
+        
+        # Check for required crystallographic parameters
+        required_keys = ['_cell_length_a', '_cell_length_b', '_cell_length_c',
+                        '_cell_angle_alpha', '_cell_angle_beta', '_cell_angle_gamma']
+        
+        has_cell_params = any(key in content for key in required_keys)
+        if not has_cell_params:
+            return False, "CIF file missing crystallographic unit cell parameters"
+        
+        return True, "CIF file is valid"
+        
+    except Exception as e:
+        return False, f"Error reading CIF file: {str(e)}"
+
+
+
