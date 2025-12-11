@@ -7,6 +7,7 @@ from .safety import *     # noqa
 from .chemspace import *  # noqa
 from .converters import * # noqa
 from .reactions import *  # noqa
+from .crystal_materials import *  # noqa
 
 # ---- custom tools in tools/New ----
 from .New.Arxiv2ResultLLM import *   # noqa
