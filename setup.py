@@ -20,6 +20,7 @@ setup(
         "ipython",
         "python-dotenv",
         "scikit-learn",
+        "pymatgen",
         "rdkit",
         "synspace",
         "openai==0.27.8",
