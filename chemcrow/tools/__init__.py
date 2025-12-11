@@ -15,7 +15,4 @@ from .New.motif_tools import *       # noqa
 from .New.VastraVisualise import *   # noqa
 # from .porosity import *  # noqa
 from .read import Read_CSV
-<<<<<<< HEAD
 from .bo_training import BayesianOptimizeData
-=======
->>>>>>> 32381d1491273681573d65b94996e464b0922aba

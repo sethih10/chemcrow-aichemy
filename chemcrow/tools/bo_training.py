@@ -11,7 +11,7 @@ from scipy.stats import norm
 class BayesianOptimizeData(BaseTool):
     name: str = "BayesianOptimizeData"
     description: str = """Performs Bayesian optimization on numeric features from a CSV file.
-Takes the csv_path, column names of the features, selectivity_Xe/Kr (target) value, and crsytal name (label) corresponding to the target, and finds the feature combination
+Takes the csv_path, column names of the features as in the csv(like void_fraction, etc.), selectivity_Xe/Kr (target) value, and crsytal name (label) corresponding to the target, and finds the feature combination
 that maximizes the target.
 
 Input query (Python dict, JSON string, or Python-dict string) with keys:
