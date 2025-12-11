@@ -96,8 +96,7 @@ class StructureSymmetryAnalysis(BaseTool):
 
         # Try as CIF path
         try:
-            parser = CifParser(input_data)
-            return parser.get_structures()[0]
+            return Structure.from_file(input_data)
         except:
             pass
 
@@ -115,7 +114,6 @@ class StructureSymmetryAnalysis(BaseTool):
                 "crystal_system": sga.get_crystal_system(),
                 "point_group": sga.get_point_group_symbol(),
                 "symmetry_operations": len(sga.get_symmetry_operations()),
-                "is_primitive": sga.is_primitive(),
             }
 
             return json.dumps(info, indent=2)
@@ -155,7 +153,7 @@ class StructureProperties(BaseTool):
 
         try:
             parser = CifParser(input_data)
-            return parser.get_structures()[0]
+            return parser.parse_structures(primitive=True)[0]
         except:
             pass
 
@@ -183,7 +181,6 @@ class StructureProperties(BaseTool):
                 "avg_coordination_number": (
                     sum(coord_numbers) / len(coord_numbers) if coord_numbers else 0
                 ),
-                "lattice_type": str(structure.lattice.type),
                 "lattice_volume_A3": structure.lattice.volume,
             }
 
@@ -838,7 +835,6 @@ class LatticeParameterOptimization(BaseTool):
                 "volume_A3": lattice.volume,
                 "volume_per_atom_A3": lattice.volume / num_atoms,
                 "density_g_cm3": structure.density,
-                "is_primitive": "Check with PrimitiveCellConversion tool",
             }
 
             # Check if lattice is standard
