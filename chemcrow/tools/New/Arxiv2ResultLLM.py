@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import requests
 import xml.etree.ElementTree as ET
 
@@ -10,11 +11,42 @@ from langchain.tools import BaseTool
 from langchain.embeddings.openai import OpenAIEmbeddings
 from pypdf.errors import PdfReadError
 
+# ------------ arXiv API config ------------ #
 
-ARXIV_API_URL = "http://export.arxiv.org/api/query"
+# Use HTTPS as best practice
+ARXIV_API_URL = "https://export.arxiv.org/api/query"
+
+# Shared session with polite User-Agent
+SESSION = requests.Session()
+SESSION.headers.update(
+    {
+        "User-Agent": (
+            "ChemCrow-ArxivTool/0.1 "
+            "(https://example.org; mailto:you@example.org)"
+        )
+    }
+)
+
+# Simple global rate limit for API calls (arXiv ToU: <= 1 request / 3s)
+_LAST_API_CALL = 0.0
+_API_MIN_INTERVAL = 3.0  # seconds
 
 
 # ------------ ArXiv helper functions (raw API) ------------ #
+
+def _throttled_arxiv_get(params: dict) -> requests.Response:
+    """Call the arXiv export API with a simple 3s throttle."""
+    global _LAST_API_CALL
+    now = time.time()
+    elapsed = now - _LAST_API_CALL
+    if elapsed < _API_MIN_INTERVAL:
+        time.sleep(_API_MIN_INTERVAL - elapsed)
+    _LAST_API_CALL = time.time()
+
+    resp = SESSION.get(ARXIV_API_URL, params=params, timeout=30)
+    resp.raise_for_status()
+    return resp
+
 
 def _arxiv_api_query(
     search: str,
@@ -33,8 +65,7 @@ def _arxiv_api_query(
         "max_results": max_results,
     }
 
-    resp = requests.get(ARXIV_API_URL, params=params, timeout=30)
-    resp.raise_for_status()
+    resp = _throttled_arxiv_get(params)
 
     root = ET.fromstring(resp.text)
     ns = {"atom": "http://www.w3.org/2005/Atom"}
@@ -89,7 +120,8 @@ def arxiv_scraper(
 
         path -> {"citation": <citation_string>}
     """
-    os.makedirs(pdir, exist_ok=True)
+    if not os.path.isdir(pdir):
+        os.makedirs(pdir, exist_ok=True)
 
     results = _arxiv_api_query(search, max_results=max_results)
     papers: dict = {}
@@ -104,8 +136,10 @@ def arxiv_scraper(
             filename = f"{arxiv_id}.pdf"
             path = os.path.join(pdir, filename)
 
-            pdf_resp = requests.get(r["pdf_url"], timeout=30)
+            # PDF downloads: sequential, via same SESSION/UA
+            pdf_resp = SESSION.get(r["pdf_url"], timeout=30)
             pdf_resp.raise_for_status()
+
             with open(path, "wb") as f:
                 f.write(pdf_resp.content)
 
@@ -126,6 +160,8 @@ def arxiv_scraper(
     return papers
 
 
+# ------------ LLM wrapper functions (ChemCrow-style) ------------ #
+
 def arxiv_paper_search(llm, query, max_results=20):
     """
     Use an LLM to compress the user query to a short arXiv search string,
@@ -137,22 +173,24 @@ def arxiv_paper_search(llm, query, max_results=20):
         I would like to find scholarly papers to answer
         this question: {question}. Your response must be at
         most 10 words long.
-        'A search query that would bring up papers that can answer
-        this question would be: '""",
+        A search query that would bring up papers that can answer
+        this question would be: """,
     )
 
     query_chain = langchain.chains.llm.LLMChain(llm=llm, prompt=prompt)
 
     base_dir = "arxiv_query"
-    os.makedirs(base_dir, exist_ok=True)
+    if not os.path.isdir(base_dir):
+        os.mkdir(base_dir)
 
-    search = query_chain.run(query)
+    search = query_chain.run(query).strip()
     print("\nArXiv search:", search)
 
     # subdirectory per search term (strip whitespace)
-    subdir = re.sub(r"\s+", "", search)
+    subdir = re.sub(r"\s+", "", search) or "default"
     search_dir = os.path.join(base_dir, subdir)
-    os.makedirs(search_dir, exist_ok=True)
+    if not os.path.isdir(search_dir):
+        os.mkdir(search_dir)
 
     papers = arxiv_scraper(search, pdir=search_dir, max_results=max_results)
     return papers
@@ -163,7 +201,7 @@ def arxiv2result_llm(
     query,
     k: int = 5,
     max_sources: int = 2,
-    openai_api_key: str | None = None,
+    openai_api_key: str = None,
     max_results: int = 20,
 ):
     """
@@ -218,13 +256,13 @@ class Arxiv2ResultLLM(BaseTool):
     )
 
     llm: BaseLanguageModel = None
-    openai_api_key: str | None = None
+    openai_api_key: str = None
     max_results: int = 20
 
     def __init__(
         self,
         llm: BaseLanguageModel,
-        openai_api_key: str | None = None,
+        openai_api_key: str = None,
         max_results: int = 20,
     ):
         super().__init__()

@@ -1,11 +1,33 @@
 import json
+from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 from langchain.tools import BaseTool
 from pymatgen.core import Structure
 from pymatgen.analysis.local_env import MinimumDistanceNN
+
+# Optional: handle NumPy types when they appear
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
+
+def _json_default(o):
+    """
+    Helper for json.dumps to convert NumPy types to plain Python types.
+    """
+    if np is not None:
+        if isinstance(o, np.integer):
+            return int(o)
+        if isinstance(o, np.floating):
+            return float(o)
+        if isinstance(o, np.ndarray):
+            return o.tolist()
+    # Fallback: just stringify anything unknown
+    return str(o)
 
 
 # =========================
@@ -29,7 +51,7 @@ class MotifPattern:
     central_species: str
     neighbor_species_counts: Dict[str, int]
     max_distance: float
-    extra: Dict[str, str] = field(default_factory=dict)
+    extra: Dict[str, Any] = field(default_factory=dict)
 
 
 def _load_motif_library_from_file(path: str | Path) -> List[MotifPattern]:
@@ -41,6 +63,10 @@ def _load_motif_library(
     motifs: Optional[Sequence[Dict]] = None,
     motif_library_path: Optional[str] = None,
 ) -> List[MotifPattern]:
+    """
+    Load motif patterns either from an inline list (motifs)
+    or from a JSON file (motif_library_path).
+    """
     if motifs is not None:
         return [MotifPattern(**m) for m in motifs]
     if motif_library_path is not None:
@@ -60,7 +86,6 @@ def _get_neighbor_info(
 ):
     if nn_strategy is None:
         nn_strategy = MinimumDistanceNN()
-    # get_nn_info returns list of dicts, each with site_index, site, weight, etc.
     neighs = nn_strategy.get_nn_info(structure, central_index)
 
     neighbors = []
@@ -69,7 +94,11 @@ def _get_neighbor_info(
         j = info["site_index"]
         dist = central_site.distance(structure[j])
         if dist <= max_distance:
-            species_j = structure[j].specie.symbol if hasattr(structure[j], "specie") else structure[j].species_string
+            species_j = (
+                structure[j].specie.symbol
+                if hasattr(structure[j], "specie")
+                else structure[j].species_string
+            )
             neighbors.append((j, species_j, dist))
 
     return neighbors
@@ -82,7 +111,11 @@ def _match_pattern(
 ) -> Optional[Dict]:
     # Check central species first
     central_site = structure[central_index]
-    central_species = central_site.specie.symbol if hasattr(central_site, "specie") else central_site.species_string
+    central_species = (
+        central_site.specie.symbol
+        if hasattr(central_site, "specie")
+        else central_site.species_string
+    )
     if central_species != pattern.central_species:
         return None
 
@@ -139,13 +172,6 @@ def decompose_structure(
 ) -> Dict:
     """
     Decompose a structure into motif instances from `motif_library`.
-
-    Parameters
-    ----------
-    allowed_motifs:
-        If provided, only motifs whose name is in this list are considered.
-    allow_overlap:
-        If False, each site can only appear in at most one motif (greedy).
     """
     if allowed_motifs is not None:
         allowed = set(allowed_motifs)
@@ -187,7 +213,139 @@ def decompose_structure(
 
 
 # =========================
-# ChemCrow tool wrapper
+# Structure comparison logic
+# =========================
+
+def compare_two_structures(
+    structure1: Structure,
+    structure2: Structure,
+    motif_library: Sequence[MotifPattern],
+    allowed_motifs: Optional[Sequence[str]] = None,
+    allow_overlap: bool = True,
+) -> Dict:
+    """
+    Decompose both structures and compare motifs.
+    """
+    decomp1 = decompose_structure(
+        structure1, motif_library, allowed_motifs=allowed_motifs, allow_overlap=allow_overlap
+    )
+    decomp2 = decompose_structure(
+        structure2, motif_library, allowed_motifs=allowed_motifs, allow_overlap=allow_overlap
+    )
+
+    index1: Dict[str, List[Dict]] = defaultdict(list)
+    index2: Dict[str, List[Dict]] = defaultdict(list)
+
+    for m in decomp1["motifs"]:
+        index1[m["motif_name"]].append(m)
+    for m in decomp2["motifs"]:
+        index2[m["motif_name"]].append(m)
+
+    names1 = set(index1.keys())
+    names2 = set(index2.keys())
+
+    shared = []
+    for name in sorted(names1 & names2):
+        shared.append(
+            {
+                "motif_name": name,
+                "count_1": len(index1[name]),
+                "count_2": len(index2[name]),
+                "instances_1": index1[name],
+                "instances_2": index2[name],
+            }
+        )
+
+    result = {
+        "decomp_1": decomp1,
+        "decomp_2": decomp2,
+        "shared_motifs": shared,
+        "unique_to_1": sorted(names1 - names2),
+        "unique_to_2": sorted(names2 - names1),
+    }
+    return result
+
+
+# =========================
+# Small summaries for the LLM
+# =========================
+
+def _summarise_decomposition_for_llm(result: Dict, max_examples_per_motif: int = 3) -> Dict:
+    """
+    Compress a full decomposition result into something LLM-friendly:
+    - counts per motif_name
+    - total motif instances
+    - number of unassigned sites
+    - a few example instances per motif
+    """
+    motifs: List[Dict] = result.get("motifs", [])
+    unassigned_sites = result.get("unassigned_sites", [])
+
+    counts: Dict[str, int] = defaultdict(int)
+    examples: Dict[str, List[Dict]] = defaultdict(list)
+    for m in motifs:
+        name = m.get("motif_name", "UNKNOWN")
+        counts[name] += 1
+        if len(examples[name]) < max_examples_per_motif:
+            examples[name].append(
+                {
+                    "central_index": int(m.get("central_index", -1)),
+                    "neighbor_indices": m.get("neighbor_indices", []),
+                }
+            )
+
+    return {
+        "total_motif_instances": len(motifs),
+        "motif_counts": dict(counts),
+        "unassigned_sites_count": len(unassigned_sites),
+        "unassigned_sites_sample": unassigned_sites[:20],
+        "example_instances": {k: v for k, v in examples.items()},
+    }
+
+
+def _summarise_comparison_for_llm(result: Dict, max_examples_per_motif: int = 3) -> Dict:
+    """
+    Compress the full comparison result:
+    - summaries of decomp_1 and decomp_2
+    - shared motif names + counts
+    - unique motif names
+    """
+    decomp1 = result.get("decomp_1", {})
+    decomp2 = result.get("decomp_2", {})
+    shared = result.get("shared_motifs", [])
+    unique1 = result.get("unique_to_1", [])
+    unique2 = result.get("unique_to_2", [])
+
+    summary_decomp1 = _summarise_decomposition_for_llm(
+        {"motifs": decomp1.get("motifs", []), "unassigned_sites": decomp1.get("unassigned_sites", [])},
+        max_examples_per_motif=max_examples_per_motif,
+    )
+    summary_decomp2 = _summarise_decomposition_for_llm(
+        {"motifs": decomp2.get("motifs", []), "unassigned_sites": decomp2.get("unassigned_sites", [])},
+        max_examples_per_motif=max_examples_per_motif,
+    )
+
+    shared_summary = []
+    for s in shared:
+        shared_summary.append(
+            {
+                "motif_name": s.get("motif_name", "UNKNOWN"),
+                "count_1": int(s.get("count_1", 0)),
+                "count_2": int(s.get("count_2", 0)),
+            }
+        )
+
+    return {
+        "decomp_1_summary": summary_decomp1,
+        "decomp_2_summary": summary_decomp2,
+        "shared_motifs": shared_summary,
+        "unique_to_1": unique1,
+        "unique_to_2": unique2,
+    }
+
+
+# =========================
+# ChemCrow tools
 # =========================
 
 class MotifDecompositionTool(BaseTool):
@@ -196,56 +354,25 @@ class MotifDecompositionTool(BaseTool):
 
     INPUT FORMAT (query string):
     -----------------------------
-    The input MUST be a JSON string with the following keys:
+    JSON with keys:
 
-    Required keys:
-      - "mode": one of ["search", "all", "from-list"]
-      - "cif_path": path to the CIF file on disk
+      Required:
+        - "mode": one of ["search", "all", "from-list"]
+        - "cif_path": path to the CIF file on disk
 
-    Motif definitions: provide EITHER:
-      - "motifs": a list of JSON motifs of the form:
-            {
-              "name": "TiO6_oct",
-              "central_species": "Ti",
-              "neighbor_species_counts": {"O": 6},
-              "max_distance": 2.3
-            }
-        OR
-      - "motif_library_path": path to a JSON file containing such entries.
+      Motif definitions: provide EITHER:
+        - "motifs": list of motif definitions, OR
+        - "motif_library_path": path to JSON motifs file
 
-    Additional keys depending on mode:
-      - mode == "search":
-          "motif_name": name of motif to search for
-      - mode == "from-list":
-          "allowed_motifs": list of motif names to use
-
-    Optional:
-      - "allow_overlap": bool, default True (if False, each site is used in at most one motif)
+      Optional:
+        - "motif_name" (for mode == "search")
+        - "allowed_motifs" (for mode == "from-list")
+        - "allow_overlap": bool
 
     OUTPUT:
     -------
-    A JSON string with motif instances and (if decomposition) unassigned sites. Examples:
-
-    - search:
-      {
-        "mode": "search",
-        "motif_name": "TiO6_oct",
-        "occurrences": [
-          {
-            "motif_name": "TiO6_oct",
-            "central_index": 10,
-            "neighbor_indices": [3, 5, 7, 12, 14, 18]
-          },
-          ...
-        ]
-      }
-
-    - all/from-list:
-      {
-        "mode": "all",
-        "motifs": [...],
-        "unassigned_sites": [...]
-      }
+    A small JSON summary **plus** a path to the full JSON file on disk
+    with all motif instances and unassigned sites.
     """
 
     name: str = "MotifDecomposition"
@@ -253,11 +380,9 @@ class MotifDecompositionTool(BaseTool):
         "Analyze coordination motifs in a CIF file. "
         "Input MUST be a JSON string with keys: "
         "'mode' (search|all|from-list), 'cif_path', and "
-        "either 'motifs' (inline motif definitions) or "
-        "'motif_library_path' (JSON file). "
-        "For 'search', also provide 'motif_name'. "
-        "For 'from-list', provide 'allowed_motifs'. "
-        "Returns motif instances and unassigned site indices as JSON."
+        "either 'motifs' or 'motif_library_path'. "
+        "Returns a compact summary and also saves the **full** result "
+        "to a JSON file on disk for offline inspection."
     )
 
     default_motif_library_path: Optional[str] = None
@@ -299,6 +424,7 @@ class MotifDecompositionTool(BaseTool):
         except Exception as e:
             return f"Error reading CIF file '{cif_path}': {e}"
 
+        # Build full internal result
         if mode == "search":
             motif_name = params.get("motif_name", None)
             if not motif_name:
@@ -308,10 +434,11 @@ class MotifDecompositionTool(BaseTool):
             except StopIteration:
                 return f"Error: motif '{motif_name}' not found in library."
             occs = find_motif_occurrences(structure, pattern)
-            result = {
+            full_result = {
                 "mode": "search",
                 "motif_name": motif_name,
-                "occurrences": occs,
+                "motifs": occs,
+                "unassigned_sites": [],
             }
 
         elif mode == "from-list":
@@ -324,11 +451,8 @@ class MotifDecompositionTool(BaseTool):
                 allowed_motifs=allowed,
                 allow_overlap=allow_overlap,
             )
-            result = {
-                "mode": "from-list",
-                "allowed_motifs": allowed,
-                **decomp,
-            }
+            decomp["mode"] = "from-list"
+            full_result = decomp
 
         elif mode == "all":
             decomp = decompose_structure(
@@ -337,16 +461,141 @@ class MotifDecompositionTool(BaseTool):
                 allowed_motifs=None,
                 allow_overlap=allow_overlap,
             )
-            result = {
-                "mode": "all",
-                **decomp,
-            }
+            decomp["mode"] = "all"
+            full_result = decomp
 
         else:
             return "Error: 'mode' must be one of 'search', 'all', or 'from-list'."
 
-        return json.dumps(result, indent=2)
+        # Save full result to disk
+        out_dir = Path("motif_results")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        base = Path(cif_path).stem
+        out_path = out_dir / f"{base}_motifs_{mode}.json"
+        out_path.write_text(json.dumps(full_result, indent=2, default=_json_default), encoding="utf-8")
+
+        # Build small summary for the LLM
+        summary_core = _summarise_decomposition_for_llm(full_result)
+        summary = {
+            "mode": mode,
+            "cif_path": cif_path,
+            "full_result_path": str(out_path),
+            **summary_core,
+        }
+
+        return json.dumps(summary, indent=2, default=_json_default)
 
     async def _arun(self, query: str) -> str:
-        """Use the tool asynchronously."""
+        raise NotImplementedError("this tool does not support async")
+
+
+class MotifComparisonTool(BaseTool):
+    """
+    Compare motifs between TWO CIF files using a motif library.
+
+    INPUT (query string):
+    ---------------------
+    JSON with:
+
+      Required:
+        - "cif_path_1": path to first CIF
+        - "cif_path_2": path to second CIF
+
+      Motif definitions: provide EITHER:
+        - "motifs": list of motif definitions, OR
+        - "motif_library_path": path to JSON file of motifs
+
+      Optional:
+        - "allowed_motifs": list of motif names to consider (subset)
+        - "allow_overlap": bool, default True
+
+    OUTPUT:
+    -------
+    A small JSON summary **plus** a path to a full JSON file on disk.
+    """
+
+    name: str = "MotifComparison"
+    description: str = (
+        "Compare motifs between two CIF files using a motif library. "
+        "Input MUST be a JSON string with keys: "
+        "'cif_path_1', 'cif_path_2', and either 'motifs' or 'motif_library_path'. "
+        "Returns a compact summary and saves the full comparison result to disk."
+    )
+
+    default_motif_library_path: Optional[str] = None
+
+    def __init__(self, default_motif_library_path: Optional[str] = None):
+        super().__init__()
+        self.default_motif_library_path = default_motif_library_path
+
+    def _run(self, query: str) -> str:
+        try:
+            params = json.loads(query)
+        except json.JSONDecodeError:
+            return (
+                "Invalid input for MotifComparison. Expected a JSON string. Example:\n"
+                '{ "cif_path_1": "path/to/a.cif", '
+                '"cif_path_2": "path/to/b.cif", '
+                '"motif_library_path": "path/to/motifs.json" }'
+            )
+
+        cif_path_1 = params.get("cif_path_1", None)
+        cif_path_2 = params.get("cif_path_2", None)
+        if not cif_path_1 or not cif_path_2:
+            return "Error: 'cif_path_1' and 'cif_path_2' are both required."
+
+        motif_defs = params.get("motifs", None)
+        motif_library_path = params.get("motif_library_path", self.default_motif_library_path)
+        allowed_motifs = params.get("allowed_motifs", None)
+        allow_overlap = params.get("allow_overlap", True)
+
+        try:
+            motif_library = _load_motif_library(
+                motifs=motif_defs,
+                motif_library_path=motif_library_path,
+            )
+        except Exception as e:
+            return f"Error loading motif library: {e}"
+
+        try:
+            struct1 = Structure.from_file(cif_path_1)
+        except Exception as e:
+            return f"Error reading CIF file 1 '{cif_path_1}': {e}"
+
+        try:
+            struct2 = Structure.from_file(cif_path_2)
+        except Exception as e:
+            return f"Error reading CIF file 2 '{cif_path_2}': {e}"
+
+        try:
+            full_result = compare_two_structures(
+                struct1,
+                struct2,
+                motif_library,
+                allowed_motifs=allowed_motifs,
+                allow_overlap=allow_overlap,
+            )
+        except Exception as e:
+            return f"Error comparing motifs: {e}"
+
+        # Save full comparison result to disk
+        out_dir = Path("motif_results")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        base1 = Path(cif_path_1).stem
+        base2 = Path(cif_path_2).stem
+        out_path = out_dir / f"compare_{base1}_vs_{base2}.json"
+        out_path.write_text(json.dumps(full_result, indent=2, default=_json_default), encoding="utf-8")
+
+        # Small summary for LLM
+        summary_core = _summarise_comparison_for_llm(full_result)
+        summary = {
+            "cif_path_1": cif_path_1,
+            "cif_path_2": cif_path_2,
+            "full_result_path": str(out_path),
+            **summary_core,
+        }
+
+        return json.dumps(summary, indent=2, default=_json_default)
+
+    async def _arun(self, query: str) -> str:
         raise NotImplementedError("this tool does not support async")
