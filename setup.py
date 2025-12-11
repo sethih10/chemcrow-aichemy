@@ -19,6 +19,7 @@ setup(
     install_requires=[
         "ipython",
         "python-dotenv",
+        "scikit-learn",
         "rdkit",
         "synspace",
         "openai==0.27.8",

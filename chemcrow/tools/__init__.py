@@ -9,3 +9,4 @@ from .converters import *  # noqa
 from .reactions import *  # noqa
 # from .porosity import *  # noqa
 from .read import Read_CSV
+from .bo_training import BayesianOptimizeData

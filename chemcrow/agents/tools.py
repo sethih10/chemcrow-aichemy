@@ -27,7 +27,8 @@ def make_tools(llm: BaseLanguageModel, api_keys: dict = {}, local_rxn: bool=Fals
     )
 
     all_tools += [
-        Read_CSV(),
+        #Read_CSV(),
+        BayesianOptimizeData(),
         QED_Score(),
         Query2SMILES(chemspace_api_key),
         Query2CAS(),
