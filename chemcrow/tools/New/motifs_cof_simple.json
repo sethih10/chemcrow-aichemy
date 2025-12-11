@@ -1,0 +1,26 @@
+[
+  {
+    "name": "C_sp2_like",
+    "central_species": "C",
+    "neighbor_species_counts": { "C": 2, "N": 1 },
+    "max_distance": 1.7
+  },
+  {
+    "name": "C_sp2_allC",
+    "central_species": "C",
+    "neighbor_species_counts": { "C": 3 },
+    "max_distance": 1.7
+  },
+  {
+    "name": "N_linker",
+    "central_species": "N",
+    "neighbor_species_counts": { "C": 2 },
+    "max_distance": 1.6
+  },
+  {
+    "name": "O_linker",
+    "central_species": "O",
+    "neighbor_species_counts": { "C": 1 },
+    "max_distance": 1.6
+  }
+]
