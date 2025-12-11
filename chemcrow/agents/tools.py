@@ -16,6 +16,7 @@ def make_tools(llm: BaseLanguageModel, api_keys: dict = {}, local_rxn: bool=Fals
     semantic_scholar_api_key = api_keys.get("SEMANTIC_SCHOLAR_API_KEY") or os.getenv(
         "SEMANTIC_SCHOLAR_API_KEY"
     )
+    mp_api_key = api_keys.get("MP_API_KEY") or os.getenv("MP_API_KEY")
 
     all_tools = agents.load_tools(
         [
@@ -46,6 +47,18 @@ def make_tools(llm: BaseLanguageModel, api_keys: dict = {}, local_rxn: bool=Fals
             openai_api_key=openai_api_key,
             semantic_scholar_api_key=semantic_scholar_api_key
         ),
+        # Crystal materials tools
+        StructureFromCIF(),
+        StructureSymmetryAnalysis(),
+        StructureProperties(),
+        StructureComparison(),
+        CompositionAnalysis(),
+        StructureSubstitution(),
+        PrimitiveCellConversion(),
+        StructureToCIF(),
+        SurfaceGeneration(),
+        CoordinationAnalysis(),
+        LatticeParameterOptimization(),
     ]
     if chemspace_api_key:
         all_tools += [GetMoleculePrice(chemspace_api_key)]

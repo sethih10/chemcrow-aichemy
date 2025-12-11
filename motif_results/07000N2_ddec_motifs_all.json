@@ -1,0 +1,619 @@
+{
+  "motifs": [
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 85,
+      "neighbor_indices": [
+        91,
+        97,
+        152
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 87,
+      "neighbor_indices": [
+        93,
+        102,
+        147
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 89,
+      "neighbor_indices": [
+        95,
+        107,
+        142
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 91,
+      "neighbor_indices": [
+        85,
+        112,
+        137
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 93,
+      "neighbor_indices": [
+        87,
+        117,
+        132
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 95,
+      "neighbor_indices": [
+        89,
+        122,
+        127
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 98,
+      "neighbor_indices": [
+        100,
+        143,
+        153
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 103,
+      "neighbor_indices": [
+        105,
+        148,
+        153
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 108,
+      "neighbor_indices": [
+        110,
+        143,
+        148
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 113,
+      "neighbor_indices": [
+        115,
+        128,
+        138
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 118,
+      "neighbor_indices": [
+        120,
+        133,
+        138
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 123,
+      "neighbor_indices": [
+        125,
+        128,
+        133
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 128,
+      "neighbor_indices": [
+        113,
+        123,
+        130
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 133,
+      "neighbor_indices": [
+        118,
+        123,
+        135
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 138,
+      "neighbor_indices": [
+        113,
+        118,
+        140
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 143,
+      "neighbor_indices": [
+        98,
+        108,
+        145
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 148,
+      "neighbor_indices": [
+        103,
+        108,
+        150
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 153,
+      "neighbor_indices": [
+        98,
+        103,
+        155
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 157,
+      "neighbor_indices": [
+        163,
+        169,
+        224
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 159,
+      "neighbor_indices": [
+        165,
+        174,
+        219
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 161,
+      "neighbor_indices": [
+        167,
+        179,
+        214
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 163,
+      "neighbor_indices": [
+        157,
+        184,
+        209
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 165,
+      "neighbor_indices": [
+        159,
+        189,
+        204
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 167,
+      "neighbor_indices": [
+        161,
+        194,
+        199
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 170,
+      "neighbor_indices": [
+        172,
+        215,
+        225
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 175,
+      "neighbor_indices": [
+        177,
+        220,
+        225
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 180,
+      "neighbor_indices": [
+        182,
+        215,
+        220
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 185,
+      "neighbor_indices": [
+        187,
+        200,
+        210
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 190,
+      "neighbor_indices": [
+        192,
+        205,
+        210
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 195,
+      "neighbor_indices": [
+        197,
+        200,
+        205
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 200,
+      "neighbor_indices": [
+        185,
+        195,
+        202
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 205,
+      "neighbor_indices": [
+        190,
+        195,
+        207
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 210,
+      "neighbor_indices": [
+        185,
+        190,
+        212
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 215,
+      "neighbor_indices": [
+        170,
+        180,
+        217
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 220,
+      "neighbor_indices": [
+        175,
+        180,
+        222
+      ]
+    },
+    {
+      "motif_name": "C_sp2_allC",
+      "central_index": 225,
+      "neighbor_indices": [
+        170,
+        175,
+        227
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 228,
+      "neighbor_indices": [
+        99
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 229,
+      "neighbor_indices": [
+        104
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 230,
+      "neighbor_indices": [
+        109
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 231,
+      "neighbor_indices": [
+        114
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 232,
+      "neighbor_indices": [
+        119
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 233,
+      "neighbor_indices": [
+        124
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 234,
+      "neighbor_indices": [
+        129
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 235,
+      "neighbor_indices": [
+        134
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 236,
+      "neighbor_indices": [
+        139
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 237,
+      "neighbor_indices": [
+        144
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 238,
+      "neighbor_indices": [
+        149
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 239,
+      "neighbor_indices": [
+        154
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 240,
+      "neighbor_indices": [
+        171
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 241,
+      "neighbor_indices": [
+        176
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 242,
+      "neighbor_indices": [
+        181
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 243,
+      "neighbor_indices": [
+        186
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 244,
+      "neighbor_indices": [
+        191
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 245,
+      "neighbor_indices": [
+        196
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 246,
+      "neighbor_indices": [
+        201
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 247,
+      "neighbor_indices": [
+        206
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 248,
+      "neighbor_indices": [
+        211
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 249,
+      "neighbor_indices": [
+        216
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 250,
+      "neighbor_indices": [
+        221
+      ]
+    },
+    {
+      "motif_name": "O_linker",
+      "central_index": 251,
+      "neighbor_indices": [
+        226
+      ]
+    }
+  ],
+  "unassigned_sites": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72,
+    73,
+    74,
+    75,
+    76,
+    77,
+    78,
+    79,
+    80,
+    81,
+    82,
+    83,
+    84,
+    86,
+    88,
+    90,
+    92,
+    94,
+    96,
+    101,
+    106,
+    111,
+    116,
+    121,
+    126,
+    131,
+    136,
+    141,
+    146,
+    151,
+    156,
+    158,
+    160,
+    162,
+    164,
+    166,
+    168,
+    173,
+    178,
+    183,
+    188,
+    193,
+    198,
+    203,
+    208,
+    213,
+    218,
+    223
+  ],
+  "mode": "all"
+}

@@ -1,12 +1,21 @@
-"""load all tools."""
+"""load all tools.""" 
 
-from .rdkit import *  # noqa
-from .search import *  # noqa
-from .rxn4chem import *  # noqa
-from .safety import *  # noqa
+from .rdkit import *      # noqa
+from .search import *     # noqa
+from .rxn4chem import *   # noqa
+from .safety import *     # noqa
 from .chemspace import *  # noqa
-from .converters import *  # noqa
+from .converters import * # noqa
 from .reactions import *  # noqa
+from .crystal_materials import *  # noqa
+
+# ---- custom tools in tools/New ----
+from .New.Arxiv2ResultLLM import *   # noqa
+from .New.motif_tools import *       # noqa
+from .New.VastraVisualise import *   # noqa
 # from .porosity import *  # noqa
 from .read import Read_CSV
+<<<<<<< HEAD
 from .bo_training import BayesianOptimizeData
+=======
+>>>>>>> 32381d1491273681573d65b94996e464b0922aba
