@@ -16,3 +16,5 @@ from .New.VastraVisualise import *   # noqa
 # from .porosity import *  # noqa
 from .read import Read_CSV
 from .bo_training import BayesianOptimizeData
+
+from .crystal_materials import *

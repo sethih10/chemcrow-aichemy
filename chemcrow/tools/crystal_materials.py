@@ -4,6 +4,9 @@ import json
 from typing import Optional
 
 from langchain.tools import BaseTool
+from typing import Any
+
+import os
 
 try:
     from pymatgen.core import Structure, Lattice, Composition
@@ -522,66 +525,86 @@ class StructureToCIF(BaseTool):
 
 # Materials Project integration (requires API key)
 class MPStructureQuery(BaseTool):
-    """Query Materials Project database for crystal structures."""
+    """
+    Query Materials Project for crystal structures.
+
+    Input:
+        - Material ID (e.g., "mp-149")
+        - Chemical formula (e.g., "SiO2")
+
+    Requires:
+        - Environment variable MP_API_KEY
+        - Packages: mp-api, pymatgen
+    """
 
     name = "MPStructureQuery"
     description = (
         "Query the Materials Project database for crystal structures. "
-        "Input: material ID (e.g., 'mp-149' for silicon) or chemical formula. "
-        "Requires MP_API_KEY environment variable. "
-        "Returns: structure information from Materials Project."
+        "Input: material ID or chemical formula. "
+        "Requires MP_API_KEY env variable. "
     )
 
-    def __init__(self, mp_api_key: Optional[str] = None):
-        super().__init__()
+    mp_api_key: Optional[str] = None
+    MPRester: Optional[Any] = None
+
+    def __init__(self, mp_api_key: Optional[str] = None, **kwargs):
+        super().__init__(**kwargs)
+
         if not PYMATGEN_AVAILABLE:
             raise ImportError(
-                "pymatgen is required for crystal materials tools. Install with: pip install pymatgen"
+                "pymatgen is required. Install with: pip install pymatgen"
             )
 
-        self.mp_api_key = mp_api_key
+        # Set API key properly
+        self.mp_api_key = mp_api_key or os.getenv("MP_API_KEY")
 
+        # Import mp-api properly
         try:
             from mp_api.client import MPRester
-
             self.MPRester = MPRester
-        except ImportError:
-            self.MPRester = None
-
-    def _run(self, query: str) -> str:
-        """Query Materials Project."""
-        if self.MPRester is None:
-            return (
-                "Error: mp-api package not installed. Install with: pip install mp-api"
+        except Exception as e:
+            raise ImportError(
+                f"mp-api import failed: {e}. "
+                "Install with: pip install mp-api"
             )
 
+    def _run(self, query: str) -> str:
+        """Execute the query."""
+        # Ensure API key exists
         if not self.mp_api_key:
-            import os
+            return (
+                "Error: MP_API_KEY not set. "
+                "Set it in the environment or pass to constructor."
+            )
 
-            self.mp_api_key = os.getenv("MP_API_KEY")
-
-        if not self.mp_api_key:
-            return "Error: MP_API_KEY not provided. Set as environment variable or pass to constructor."
+        if self.MPRester is None:
+            return "Error: mp-api not installed correctly."
 
         try:
             with self.MPRester(self.mp_api_key) as mpr:
-                # Try as material ID first
+
+                # 1. Try material ID
                 try:
                     structure = mpr.get_structure_by_material_id(query)
-                except:
-                    # Try as formula
-                    docs = mpr.summary.search(
-                        formula=query,
-                        fields=["material_id", "formula_pretty", "structure"],
-                    )
+                except Exception:
+                    # 2. Try formula search
+                    try:
+                        docs = mpr.summary.search(
+                            formula=query,
+                            fields=["material_id", "formula_pretty", "structure"],
+                        )
+                    except Exception as e:
+                        return f"Error searching Materials Project: {str(e)}"
+
                     if not docs:
-                        return f"No materials found for query: {query}"
+                        return f"No materials found for query '{query}'."
+
                     structure = docs[0].structure
 
                 sga = SpacegroupAnalyzer(structure)
 
                 info = {
-                    "material_id": query if query.startswith("mp-") else "N/A",
+                    "query": query,
                     "composition": structure.composition.formula,
                     "space_group": sga.get_space_group_symbol(),
                     "lattice_parameters": {
@@ -594,12 +617,12 @@ class MPStructureQuery(BaseTool):
                 }
 
                 return json.dumps(info, indent=2)
+
         except Exception as e:
             return f"Error querying Materials Project: {str(e)}"
 
     async def _arun(self, query: str) -> str:
-        """Use the tool asynchronously."""
-        raise NotImplementedError()
+        raise NotImplementedError("Async not supported.")
 
 
 class SurfaceGeneration(BaseTool):

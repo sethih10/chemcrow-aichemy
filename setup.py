@@ -18,6 +18,7 @@ setup(
     package_data={"chemcrow": ["data/chem_wep_smi.csv"]},
     install_requires=[
         "ipython",
+        "mp_api",
         "python-dotenv",
         "scikit-learn",
         "pymatgen",
