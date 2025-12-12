@@ -9,6 +9,12 @@ from .converters import * # noqa
 from .reactions import *  # noqa
 from .crystal_materials import *  # noqa
 
+# LLM-integrated crystal materials tools (optional, requires langchain)
+try:
+    from .crystal_materials_llm import *  # noqa
+except ImportError:
+    pass
+
 # ---- custom tools in tools/New ----
 from .New.Arxiv2ResultLLM import *   # noqa
 from .New.motif_tools import *       # noqa
